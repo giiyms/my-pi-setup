@@ -33,4 +33,22 @@ Add the included theme to `~/.pi/agent/settings.json` while keeping your existin
 }
 ```
 
+## efficient-harness
+
+Loaded automatically from `extensions/efficient-harness/` (hashline edits, compression, smart compact, `lsp`, `debug`). No extra install.
+
+Optional flags when launching Pi:
+
+| Flag | Effect |
+|------|--------|
+| `--advisor` | Second-pass review notes after turns |
+| `--auto-lsp` | Append diagnostics after edit/write |
+| `--no-hashline` | Use stock Pi read/edit |
+| `--no-bash-compress` | Disable tool output compression |
+| `--no-smart-compact` | Use Pi default compaction |
+
+Commands: `/harness`, `/advisor on|off|status|once`, `/checkpoint [label]`. Skill: `/skill:efficient-harness`.
+
+Prefer **`fd` / `rg`** (file-search) for search and **`subagent_*`** for isolated agents — do not expect harness `find`/`grep`/`task` tools (they were intentionally not ported).
+
 Pi will load the extensions, skills, and theme from their directories the next time it starts.
