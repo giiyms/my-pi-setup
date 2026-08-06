@@ -25,5 +25,5 @@ test("registers only the recap renderer, command, and bounded lifecycle hooks", 
     ]),
   );
   assert.deepEqual(renderers, new Set(["summary-recap"]));
-  assert.deepEqual(commands, new Set(["summary-model"]));
+  assert.deepEqual(commands, new Set(["summary", "summary-model"]));
 });

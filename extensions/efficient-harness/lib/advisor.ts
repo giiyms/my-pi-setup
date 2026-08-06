@@ -70,7 +70,9 @@ export function parseAdvisorResponse(raw: string): AdvisorNote[] {
       const severity = (n as { severity?: string }).severity;
       const text = (n as { text?: string }).text;
       if (
-        (severity === "aside" || severity === "concern" || severity === "blocker") &&
+        (severity === "aside" ||
+          severity === "concern" ||
+          severity === "blocker") &&
         typeof text === "string" &&
         text.trim()
       ) {

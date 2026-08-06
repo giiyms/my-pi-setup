@@ -17,11 +17,7 @@ export function lineHash(line: string): string {
     h = Math.imul(h, 0x01000193);
   }
   const n = (h >>> 0) & 0x3ffff; // 18 bits
-  return (
-    ALPHABET[(n >> 12) & 63] +
-    ALPHABET[(n >> 6) & 63] +
-    ALPHABET[n & 63]
-  );
+  return ALPHABET[(n >> 12) & 63] + ALPHABET[(n >> 6) & 63] + ALPHABET[n & 63];
 }
 
 export type Anchor = {
@@ -72,7 +68,10 @@ export function renderHashline(
 ): string {
   const { offset = 1, limit, maxBytes = 80 * 1024, header = true } = options;
   const start = Math.max(0, offset - 1);
-  const end = limit != null ? Math.min(file.lines.length, start + limit) : file.lines.length;
+  const end =
+    limit != null
+      ? Math.min(file.lines.length, start + limit)
+      : file.lines.length;
 
   const out: string[] = [];
   if (header) {
@@ -95,7 +94,10 @@ export function renderHashline(
     out.push(row);
   }
 
-  if (end < file.lines.length && (limit == null || start + (limit ?? 0) >= end)) {
+  if (
+    end < file.lines.length &&
+    (limit == null || start + (limit ?? 0) >= end)
+  ) {
     // if we finished the requested window but more file remains
     if (limit != null && start + limit < file.lines.length) {
       out.push(
@@ -128,15 +130,26 @@ export type EditOp =
     };
 
 export type EditResult =
-  | { ok: true; content: string; opsApplied: number; linesBefore: number; linesAfter: number }
+  | {
+      ok: true;
+      content: string;
+      opsApplied: number;
+      linesBefore: number;
+      linesAfter: number;
+    }
   | { ok: false; error: string };
 
-function resolveLine(file: HashlineFile, anchorRaw: string): { line: number } | { error: string } {
+function resolveLine(
+  file: HashlineFile,
+  anchorRaw: string,
+): { line: number } | { error: string } {
   const a = parseAnchor(anchorRaw);
   if (a.line != null && a.hash != null) {
     const idx = a.line - 1;
     if (idx < 0 || idx >= file.lines.length) {
-      return { error: `Anchor ${anchorRaw}: line ${a.line} out of range (file has ${file.lines.length} lines)` };
+      return {
+        error: `Anchor ${anchorRaw}: line ${a.line} out of range (file has ${file.lines.length} lines)`,
+      };
     }
     if (file.hashes[idx] !== a.hash) {
       return {
@@ -190,7 +203,10 @@ export function applyHashlineEdits(content: string, ops: EditOp[]): EditResult {
       const e = resolveLine(file, op.end ?? op.start);
       if ("error" in e) return { ok: false, error: `${tag}: ${e.error}` };
       if (e.line < s.line) {
-        return { ok: false, error: `${tag}: end (${e.line}) before start (${s.line})` };
+        return {
+          ok: false,
+          error: `${tag}: end (${e.line}) before start (${s.line})`,
+        };
       }
       // empty text removes the range (replace with nothing)
       const replacement = op.text === "" ? [] : op.text.split("\n");

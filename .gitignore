@@ -1,8 +1,10 @@
 # Dependencies
 node_modules/
+npm/node_modules/
 
 # Downloaded/generated executables
 bin/
+cache/
 
 # Pi runtime and private state
 sessions/

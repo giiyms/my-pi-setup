@@ -50,7 +50,11 @@ import {
   formatDiagnostics,
   getDiagnostics,
 } from "./lib/lsp-client.ts";
-import { isProbablyBinary, shouldSummarize, summarizeSource } from "./lib/summarize.ts";
+import {
+  isProbablyBinary,
+  shouldSummarize,
+  summarizeSource,
+} from "./lib/summarize.ts";
 
 const MAX_WRITE_BYTES = 2 * 1024 * 1024;
 
@@ -73,11 +77,26 @@ async function resolveReadable(cwd: string, path: string): Promise<string> {
   return resolve(cwd, path);
 }
 
+/** Last status text per key — skip setStatus when unchanged. */
+const lastStatusByKey = new Map<string, string | undefined>();
+function setStatusIfChanged(
+  ui: { setStatus: (key: string, text: string | undefined) => void },
+  key: string,
+  text: string | undefined,
+) {
+  if (lastStatusByKey.has(key) && lastStatusByKey.get(key) === text) return;
+  lastStatusByKey.set(key, text);
+  ui.setStatus(key, text);
+}
+
 export default function efficientHarness(pi: ExtensionAPI) {
   const advisor = defaultAdvisorConfig();
   let turnCounter = 0;
   let lastUserPrompt = "";
-  const checkpoints = new Map<string, { label: string; note: string; at: number }>();
+  const checkpoints = new Map<
+    string,
+    { label: string; note: string; at: number }
+  >();
 
   // ── CLI flags ──────────────────────────────────────────────
   pi.registerFlag("advisor", {
@@ -101,7 +120,8 @@ export default function efficientHarness(pi: ExtensionAPI) {
     default: false,
   });
   pi.registerFlag("auto-lsp", {
-    description: "After edit/write, append LSP diagnostics for the touched file",
+    description:
+      "After edit/write, append LSP diagnostics for the touched file",
     type: "boolean",
     default: false,
   });
@@ -116,7 +136,7 @@ export default function efficientHarness(pi: ExtensionAPI) {
         advisor.enabled ? "advisor=on" : "advisor=off",
         pi.getFlag("no-smart-compact") ? "compact=default" : "compact=smart",
       ];
-      ctx.ui.setStatus("efficient-harness", bits.join(" · "));
+      setStatusIfChanged(ctx.ui, "efficient-harness", bits.join(" · "));
     }
   });
 
@@ -179,7 +199,10 @@ export default function efficientHarness(pi: ExtensionAPI) {
 
       const summary = response.content
         .filter(
-          (c: { type: string; text?: string }): c is { type: "text"; text: string } =>
+          (c: {
+            type: string;
+            text?: string;
+          }): c is { type: "text"; text: string } =>
             c.type === "text" && typeof c.text === "string",
         )
         .map((c: { type: "text"; text: string }) => c.text)
@@ -219,7 +242,9 @@ export default function efficientHarness(pi: ExtensionAPI) {
       if (input?.path) {
         try {
           const root = await findProjectRoot(ctx.cwd);
-          const diag = await getDiagnostics(input.path, root, { maxDiagnostics: 20 });
+          const diag = await getDiagnostics(input.path, root, {
+            maxDiagnostics: 20,
+          });
           const errors = diag.diagnostics.filter((d) => d.severity === "error");
           if (errors.length || diag.diagnostics.length) {
             const block = formatDiagnostics(diag);
@@ -246,7 +271,11 @@ export default function efficientHarness(pi: ExtensionAPI) {
     if (event.isError) return;
 
     // Compress large text payloads from bash and similar tools
-    if (event.toolName !== "bash" && event.toolName !== "rg" && event.toolName !== "fd") {
+    if (
+      event.toolName !== "bash" &&
+      event.toolName !== "rg" &&
+      event.toolName !== "fd"
+    ) {
       const joined = event.content
         .map((c) => (c.type === "text" ? c.text : ""))
         .join("\n");
@@ -283,7 +312,8 @@ export default function efficientHarness(pi: ExtensionAPI) {
     turnCounter += 1;
     if (turnCounter % advisor.everyNTurns !== 0) return;
 
-    const message = event.message as { role?: string; content?: unknown } | undefined;
+    const message = event.message as
+      { role?: string; content?: unknown } | undefined;
     if (!message || message.role !== "assistant") return;
 
     const assistantText = extractAssistantText(message.content);
@@ -322,18 +352,32 @@ export default function efficientHarness(pi: ExtensionAPI) {
       }
       if (a === "on" || a === "enable") {
         advisor.enabled = true;
-        ctx.ui.setStatus("efficient-harness", "efficient-harness · hashline · advisor=on");
-        ctx.ui.notify("Advisor enabled — reviews each turn and injects notes", "info");
+        setStatusIfChanged(
+          ctx.ui,
+          "efficient-harness",
+          "efficient-harness · hashline · advisor=on",
+        );
+        ctx.ui.notify(
+          "Advisor enabled — reviews each turn and injects notes",
+          "info",
+        );
         return;
       }
       if (a === "off" || a === "disable") {
         advisor.enabled = false;
-        ctx.ui.setStatus("efficient-harness", "efficient-harness · hashline · advisor=off");
+        setStatusIfChanged(
+          ctx.ui,
+          "efficient-harness",
+          "efficient-harness · hashline · advisor=off",
+        );
         ctx.ui.notify("Advisor disabled", "info");
         return;
       }
       if (a === "once") {
-        ctx.ui.notify("Running one-shot advisor on last assistant turn…", "info");
+        ctx.ui.notify(
+          "Running one-shot advisor on last assistant turn…",
+          "info",
+        );
         const branch = ctx.sessionManager.getBranch();
         let assistantText = "";
         let toolSummary = "";
@@ -426,7 +470,8 @@ export default function efficientHarness(pi: ExtensionAPI) {
       label: "read",
       description:
         "Read a file. Large files return a structural SUMMARY by default (token-efficient). Pass full=true for hashline-annotated content (line:hash|text). Use offset/limit (1-indexed) for windows. Prefer hashline reads before edit.",
-      promptSnippet: "Read files; large files summarized; full=true for hashline anchors",
+      promptSnippet:
+        "Read files; large files summarized; full=true for hashline anchors",
       promptGuidelines: [
         "Use read with full=true (or a small offset/limit window) before edit so you get line:hash anchors.",
         "Do not dump entire large files when a summary or range suffices.",
@@ -435,12 +480,17 @@ export default function efficientHarness(pi: ExtensionAPI) {
       parameters: Type.Object({
         path: Type.String({ description: "Path relative to cwd or absolute" }),
         offset: Type.Optional(
-          Type.Number({ description: "1-indexed start line (hashline window)" }),
+          Type.Number({
+            description: "1-indexed start line (hashline window)",
+          }),
         ),
-        limit: Type.Optional(Type.Number({ description: "Max lines to return" })),
+        limit: Type.Optional(
+          Type.Number({ description: "Max lines to return" }),
+        ),
         full: Type.Optional(
           Type.Boolean({
-            description: "If true, return hashline content even for large files",
+            description:
+              "If true, return hashline content even for large files",
           }),
         ),
       }),
@@ -507,10 +557,16 @@ export default function efficientHarness(pi: ExtensionAPI) {
         ops: Type.Optional(
           Type.Array(
             Type.Object({
-              op: Type.String({ description: "replace | insert_after | delete" }),
+              op: Type.String({
+                description: "replace | insert_after | delete",
+              }),
               start: Type.String({ description: "Anchor line:hash" }),
-              end: Type.Optional(Type.String({ description: "End anchor for ranges" })),
-              text: Type.Optional(Type.String({ description: "New text for replace/insert" })),
+              end: Type.Optional(
+                Type.String({ description: "End anchor for ranges" }),
+              ),
+              text: Type.Optional(
+                Type.String({ description: "New text for replace/insert" }),
+              ),
             }),
             { description: "List of hashline operations" },
           ),
@@ -526,7 +582,9 @@ export default function efficientHarness(pi: ExtensionAPI) {
         try {
           original = await readFile(abs, "utf8");
         } catch (e) {
-          return errorResult(`Cannot read ${params.path}: ${(e as Error).message}`);
+          return errorResult(
+            `Cannot read ${params.path}: ${(e as Error).message}`,
+          );
         }
 
         const ops: EditOp[] = [];
@@ -615,20 +673,28 @@ export default function efficientHarness(pi: ExtensionAPI) {
     ],
     parameters: Type.Object({
       action: Type.String({
-        description: "help | status | lldb_run | lldb_cmds | node_inspect | kill",
+        description:
+          "help | status | lldb_run | lldb_cmds | node_inspect | kill",
       }),
-      program: Type.Optional(Type.String({ description: "Binary or script path" })),
+      program: Type.Optional(
+        Type.String({ description: "Binary or script path" }),
+      ),
       args: Type.Optional(Type.Array(Type.String())),
       breakpoint: Type.Optional(
         Type.String({ description: "file:line or symbol name" }),
       ),
       commands: Type.Optional(
         Type.Array(Type.String(), {
-          description: "lldb commands after stop (bt, frame variable, p expr, ...)",
+          description:
+            "lldb commands after stop (bt, frame variable, p expr, ...)",
         }),
       ),
-      session: Type.Optional(Type.String({ description: "Session id for kill" })),
-      port: Type.Optional(Type.Number({ description: "Node inspect port (default 9229)" })),
+      session: Type.Optional(
+        Type.String({ description: "Session id for kill" }),
+      ),
+      port: Type.Optional(
+        Type.Number({ description: "Node inspect port (default 9229)" }),
+      ),
     }),
     async execute(_id, params, _signal, _onUpdate, ctx) {
       const action = params.action.toLowerCase();
@@ -730,7 +796,9 @@ export default function efficientHarness(pi: ExtensionAPI) {
     ],
     parameters: Type.Object({
       path: Type.String({ description: "File to analyze" }),
-      maxDiagnostics: Type.Optional(Type.Number({ description: "Cap (default 40)" })),
+      maxDiagnostics: Type.Optional(
+        Type.Number({ description: "Cap (default 40)" }),
+      ),
     }),
     async execute(_id, params, _signal, _onUpdate, ctx) {
       const root = await findProjectRoot(ctx.cwd);
@@ -783,7 +851,10 @@ async function runAdvisor(opts: {
 
   const raw = response.content
     .filter(
-      (c: { type: string; text?: string }): c is { type: "text"; text: string } =>
+      (c: {
+        type: string;
+        text?: string;
+      }): c is { type: "text"; text: string } =>
         c.type === "text" && typeof c.text === "string",
     )
     .map((c: { type: "text"; text: string }) => c.text)
@@ -791,7 +862,7 @@ async function runAdvisor(opts: {
 
   const notes = parseAdvisorResponse(raw).slice(0, advisor.maxNotes);
   if (!notes.length) {
-    if (ctx.hasUI) ctx.ui.setStatus("advisor", "advisor: clean");
+    if (ctx.hasUI) setStatusIfChanged(ctx.ui, "advisor", "advisor: clean");
     return;
   }
 
@@ -808,9 +879,12 @@ async function runAdvisor(opts: {
 
   if (ctx.hasUI) {
     const blockers = notes.filter((n) => n.severity === "blocker").length;
-    ctx.ui.setStatus(
+    setStatusIfChanged(
+      ctx.ui,
       "advisor",
-      blockers ? `advisor: ${blockers} blocker(s)` : `advisor: ${notes.length} note(s)`,
+      blockers
+        ? `advisor: ${blockers} blocker(s)`
+        : `advisor: ${notes.length} note(s)`,
     );
     ctx.ui.notify(
       notes.map((n) => `(${n.severity}) ${n.text}`).join("\n"),

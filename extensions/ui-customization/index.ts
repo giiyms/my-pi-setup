@@ -7,6 +7,7 @@ import type {
 } from "@earendil-works/pi-coding-agent";
 import {
   getCapabilities,
+  getKeybindings,
   hyperlink,
   truncateToWidth,
   visibleWidth,
@@ -184,6 +185,108 @@ function columns(left: string, right: string, width: number) {
   );
 }
 
+function formatKeyChord(key: string) {
+  return key
+    .split("+")
+    .map((part) => {
+      const raw = part.toLowerCase();
+      const display =
+        process.platform === "darwin" && raw === "alt" ? "option" : part;
+      if (display.length === 1) return display.toUpperCase();
+      return display.charAt(0).toUpperCase() + display.slice(1);
+    })
+    .join("+");
+}
+
+function keyLabel(action: string, fallback: string) {
+  try {
+    const keys = getKeybindings().getKeys(action);
+    if (keys.length === 0) return fallback;
+    return keys.map(formatKeyChord).join("/");
+  } catch {
+    return fallback;
+  }
+}
+
+function packHints(
+  parts: Array<{ keys: string; label: string }>,
+  width: number,
+  sep: string,
+) {
+  let line = "";
+  for (const part of parts) {
+    const chunk = `${part.keys} ${part.label}`;
+    const next = line ? `${line}${sep}${chunk}` : chunk;
+    if (visibleWidth(next) > width) break;
+    line = next;
+  }
+  return line ? truncateToWidth(line, width) : "";
+}
+
+function hotkeyHints(
+  generating: boolean,
+  width: number,
+  theme: { fg: (name: string, text: string) => string },
+) {
+  const dim = (s: string) => theme.fg("dim", s);
+  const key = (s: string) => theme.fg("muted", s);
+
+  const parts = generating
+    ? [
+        { keys: key(keyLabel("app.interrupt", "Esc")), label: dim("abort") },
+        {
+          keys: key(keyLabel("tui.input.submit", "Enter")),
+          label: dim("steer"),
+        },
+        {
+          keys: key(keyLabel("app.message.followUp", "Alt+Enter")),
+          label: dim("follow-up"),
+        },
+        {
+          keys: key(keyLabel("app.message.dequeue", "Alt+Up")),
+          label: dim("unqueue"),
+        },
+        {
+          keys: key(keyLabel("app.tools.expand", "Ctrl+O")),
+          label: dim("tools"),
+        },
+        {
+          keys: key(keyLabel("app.message.copy", "Ctrl+X")),
+          label: dim("copy"),
+        },
+      ]
+    : [
+        {
+          keys: key(keyLabel("tui.input.submit", "Enter")),
+          label: dim("send"),
+        },
+        {
+          keys: key(keyLabel("app.thinking.cycle", "Shift+Tab")),
+          label: dim("think"),
+        },
+        {
+          keys: key(keyLabel("app.model.cycleForward", "Ctrl+P")),
+          label: dim("model"),
+        },
+        {
+          keys: key(keyLabel("app.model.select", "Ctrl+L")),
+          label: dim("models"),
+        },
+        {
+          keys: key(keyLabel("app.tools.expand", "Ctrl+O")),
+          label: dim("tools"),
+        },
+        {
+          keys: key(keyLabel("app.clear", "Ctrl+C")),
+          label: dim("clear"),
+        },
+        { keys: key("/"), label: dim("cmds") },
+        { keys: key("/hotkeys"), label: dim("all") },
+      ];
+
+  return packHints(parts, width, dim(" · "));
+}
+
 export default function uiCustomization(pi: ExtensionAPI) {
   let title = "pi";
   let modelInfo = emptyModelInfoState();
@@ -282,7 +385,10 @@ export default function uiCustomization(pi: ExtensionAPI) {
             columns(theme.fg("muted", usage), theme.fg("muted", git), width),
           ];
 
-          // Extension statuses render after the two dashboard lines, one per row.
+          const hints = hotkeyHints(modelInfo.generating, width, theme);
+          if (hints) lines.push(hints);
+
+          // Extension statuses render after the dashboard + hint lines.
           const statuses = footerData.getExtensionStatuses();
           const statusLines = Array.from(statuses.entries())
             .sort(([a], [b]) => a.localeCompare(b))

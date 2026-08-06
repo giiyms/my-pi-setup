@@ -7,6 +7,20 @@ cd ~/.pi/agent
 npm install
 ```
 
+## Canonical `pi` (TypeScript fork)
+
+Daily `pi` is the **giiyms/pi** TypeScript fork (Node), not pi_agent_rust:
+
+| Command | What |
+|---------|------|
+| `pi` | Built fork at `~/DevLocal/Javascript/pi` (`~/.local/bin/pi`) |
+| `pi-dev` | Same fork via `pi-test.sh` (tsx sources, no rebuild) |
+| `pi-upstream` | Stock Homebrew npm `@earendil-works/pi-coding-agent` |
+
+Fork overlays: caveman token mode (`/cave`), `FORK_CONFIG` (no telemetry / auto-update / share). Sync: `cd ~/DevLocal/Javascript/pi && ./scripts/sync-upstream.sh`.
+
+Agent config dir is this repo via `~/.pi/agent` → symlink. Extensions live in `extensions/` (Node / TS only).
+
 ## Firecrawl
 
 The search, scrape, and crawl tools require a Firecrawl API key. Follow [Firecrawl's Node.js getting-started guide](https://docs.firecrawl.dev/quickstarts/nodejs) to create one, then copy the example environment file:

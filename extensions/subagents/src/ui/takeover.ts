@@ -1,8 +1,8 @@
 /**
  * Takeover UI for subagents (ported from v1, rendering from the synchronous
  * SubagentReadModel instead of live pi sessions):
- * - SubagentDashboard: full popup (overlay) listing all subagents.
- * - TakeoverView: full interactive view of one subagent with an input line
+ * - SubagentDashboard: large centered overlay listing all subagents.
+ * - TakeoverView: interactive view of one subagent with an input line
  *   to steer/continue it.
  */
 
@@ -49,6 +49,20 @@ function statusWord(snap: SubagentSnapshot, theme: Theme): string {
 
 // --- Entry points --------------------------------------------------------------
 
+/** Large centered panel — avoids full-viewport dirties/scroll storms. */
+const OVERLAY_OPTIONS = {
+  anchor: "center" as const,
+  margin: 1,
+  width: "94%" as const,
+  maxHeight: "86%" as const,
+};
+
+/** Max content rows for the non-fullscreen overlay (margin:1 + maxHeight 86%). */
+function panelMaxRows(termRows: number) {
+  const rows = termRows || 30;
+  return Math.max(10, Math.min(Math.floor(rows * 0.86), rows - 2));
+}
+
 export interface TakeoverOptions {
   readonly badge?: string;
 }
@@ -65,7 +79,7 @@ export async function openSubagentTakeover(
       new TakeoverView(tui, theme, keybindings, id, view, done, options),
     {
       overlay: true,
-      overlayOptions: { anchor: "center", width: "100%", maxHeight: "100%" },
+      overlayOptions: OVERLAY_OPTIONS,
     },
   );
 }
@@ -87,7 +101,7 @@ export async function openSubagentPicker(
         new SubagentDashboard(tui, theme, keybindings, view, selection, done),
       {
         overlay: true,
-        overlayOptions: { anchor: "center", width: "100%", maxHeight: "100%" },
+        overlayOptions: OVERLAY_OPTIONS,
       },
     );
 
@@ -99,7 +113,7 @@ export async function openSubagentPicker(
   }
 }
 
-// --- Dashboard (fullscreen overlay) ----------------------------------------------
+// --- Dashboard (large centered overlay) -----------------------------------------
 
 export interface DashboardSelection {
   id?: string;
@@ -232,10 +246,8 @@ class SubagentDashboard implements Component {
     reconcileDashboardSelection(this.selection, subs);
 
     const rows = this.tui.terminal.rows || 30;
-    // Render exactly terminal rows - 1 so the overlay covers the header,
-    // chat, editor, and extra footer lines while leaving pi's final footer
-    // row visible.
-    const bodyHeight = Math.max(6, rows - 5);
+    // Fit inside maxHeight 86% / margin 1 so chrome (borders, hints) is not clipped.
+    const bodyHeight = Math.max(6, panelMaxRows(rows) - 4);
     const innerWidth = width - 2;
 
     const lines: string[] = [];
@@ -491,11 +503,10 @@ class TakeoverView implements Component, Focusable {
     this.tui.requestRender();
   }
 
-  private viewportHeight(): number {
+  private viewportHeight() {
     const rows = this.tui.terminal.rows || 30;
-    // The complete view renders viewport + 7 chrome rows. Using rows - 8
-    // makes the overlay exactly terminal rows - 1.
-    return Math.max(6, rows - 8);
+    // Complete view = viewport + 7 chrome rows; size to the non-fullscreen panel.
+    return Math.max(6, panelMaxRows(rows) - 7);
   }
 
   render(width: number): string[] {

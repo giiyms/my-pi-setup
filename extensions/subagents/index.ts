@@ -1,6 +1,6 @@
 /**
- * Subagents — spawn background subagents on one of three backends
- * (pi, Claude Code, Codex) unified behind a single Effect service interface.
+ * Subagents — spawn background subagents on one of four backends
+ * (pi, Claude Code, Codex, Antigravity/`agy` as gemini) unified behind a single Effect service interface.
  *
  * Tools (for the parent LLM):
  * - subagent_spawn: fire-and-forget spawn (prompt, title, agent, working_dir,
@@ -15,9 +15,9 @@
  *
  * Architecture: Effect v4 generators throughout (backends -> manager ->
  * runtime); this file is the async boundary where tool handlers run effects
- * against one shared ManagedRuntime. All three backends are real: pi runs
+ * against one shared ManagedRuntime. All four backends are real: pi runs
  * in-process SDK sessions, claude drives the Claude Agent SDK, codex speaks
- * JSON-RPC to a scoped `codex app-server` process.
+ * JSON-RPC to a scoped `codex app-server` process, gemini shells Antigravity (`agy`).
  */
 
 import * as fs from "node:fs";
@@ -143,6 +143,8 @@ export default function (pi: ExtensionAPI) {
   let sessionContext: ExtensionContext | undefined;
   let ui: ExtensionUIContext | undefined;
   let unsubStatus: (() => void) | undefined;
+  /** Last status text written — skip setStatus when unchanged. */
+  let lastStatusText: string | undefined;
   const resultDelivery = createDeferredResultDelivery<SubagentSnapshot>();
 
   const getRuntime = () => (runtime ??= createSubagentRuntime());
@@ -164,17 +166,16 @@ export default function (pi: ExtensionAPI) {
   const updateStatus = (manager: SubagentManagerShape) => {
     if (!ui) return;
     const subs = manager.view.list();
-    if (subs.length === 0) {
-      ui.setStatus("subagents", undefined);
-      return;
+    let next: string | undefined;
+    if (subs.length > 0) {
+      const running = subs.filter((snap) => snap.status === "running").length;
+      const failed = subs.filter((snap) => snap.status === "error").length;
+      const done = subs.length - running - failed;
+      next = formatActivityStatus(ui.theme, { running, done, failed });
     }
-    const running = subs.filter((snap) => snap.status === "running").length;
-    const failed = subs.filter((snap) => snap.status === "error").length;
-    const done = subs.length - running - failed;
-    ui.setStatus(
-      "subagents",
-      formatActivityStatus(ui.theme, { running, done, failed }),
-    );
+    if (next === lastStatusText) return;
+    lastStatusText = next;
+    ui.setStatus("subagents", next);
   };
 
   const deliverResult = (snap: SubagentSnapshot) => {
@@ -252,7 +253,10 @@ export default function (pi: ExtensionAPI) {
     resultDelivery.clear();
     unsubStatus?.();
     unsubStatus = undefined;
-    ui?.setStatus("subagents", undefined);
+    if (lastStatusText !== undefined || ui) {
+      lastStatusText = undefined;
+      ui?.setStatus("subagents", undefined);
+    }
     ui = undefined;
     const closing = runtime;
     runtime = undefined;

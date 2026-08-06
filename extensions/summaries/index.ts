@@ -45,14 +45,17 @@ export default function (pi: ExtensionAPI) {
   const activeSummaries = new Map<AbortController, Promise<void>>();
   let sessionActive = false;
   let statusContext: ExtensionContext | undefined;
+  /** Last status text written — skip setStatus when unchanged. */
+  let lastStatusText: string | undefined;
 
   const updateStatus = () => {
-    statusContext?.ui.setStatus(
-      STATUS_KEY,
-      activeSummaries.size > 0
+    const next =
+      statusContext && activeSummaries.size > 0
         ? statusContext.ui.theme.fg("muted", "✦ summarizing run…")
-        : undefined,
-    );
+        : undefined;
+    if (next === lastStatusText) return;
+    lastStatusText = next;
+    statusContext?.ui.setStatus(STATUS_KEY, next);
   };
 
   pi.registerEntryRenderer<RecapEntryData>(
@@ -132,6 +135,7 @@ export default function (pi: ExtensionAPI) {
       SHUTDOWN_WAIT_MS,
     );
     activeSummaries.clear();
+    lastStatusText = undefined;
     statusContext?.ui.setStatus(STATUS_KEY, undefined);
     statusContext = undefined;
   });

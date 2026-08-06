@@ -9,8 +9,8 @@ Each subagent is headless, has its own context window, cannot see the parent con
 
 ## Pi Harness
 
-**Harness:** `pi`
-**Prompt nicknames:** “pi”, “pi agent”, “pi subagent”
+**Harness:** `pi`  
+**Prompt nicknames:** “pi”, “pi agent”, “pi subagent”  
 **Best default:** Use when the user does not request another harness. It inherits the parent model and thinking level when `model` or `reasoning_effort` is omitted.
 
 Do not use models from the Anthropic provider even if one appears in the model list.
@@ -28,8 +28,8 @@ Pi can use any model shown by `pi --list-models`. Prefer `provider/model-id`; a 
 
 ## Claude Code Harness
 
-**Harness:** `claude`
-**Prompt nicknames:** “claude”, “Claude Code”, “claude agent”, “claude subagent”, "cc"
+**Harness:** `claude`  
+**Prompt nicknames:** “claude”, “Claude Code”, “claude agent”, “claude subagent”, "cc"  
 **Best default:** use the latest fable model on high reasoning. Do not default to anything else, if the user does not specify, use fable.
 
 | Model hint | Model               | Recommended effort |
@@ -42,8 +42,8 @@ Requires Claude Code to be installed and authenticated.
 
 ## Codex Harness
 
-**Harness:** `codex`
-**Prompt nicknames:** “codex”, “Codex CLI”, “codex agent”, “codex subagent”
+**Harness:** `codex`  
+**Prompt nicknames:** “codex”, “Codex CLI”, “codex agent”, “codex subagent”  
 **Best default:** `gpt-5.6-sol` with `high` effort for coding work. Do not use anything other than sol unless the user specifically asks for it.
 
 | Model           | Recommended effort |
@@ -56,6 +56,18 @@ Requires Claude Code to be installed and authenticated.
 
 Requires the Codex CLI to be installed and authenticated.
 
+## Gemini / Antigravity Harness
+
+**Harness:** `gemini`  
+**Prompt nicknames:** “gemini”, “Antigravity”, “agy”, “gemini agent”, “gemini subagent”  
+**CLI:** `agy` (Antigravity), **not** `@google/gemini-cli`  
+**Best default:** omit `model` → `gemini-3.1-pro-high`. Other `agy models` values work via `model` (e.g. `gemini-3.6-flash-high`, `gemini-3.1-pro-low`).
+
+Requires `agy` on PATH (typically `~/.local/bin/agy`) and an authenticated Antigravity login. Runs headless with `-p` + `--dangerously-skip-permissions`.
+
+Gemini/agy does not map `reasoning_effort` (ignored).
+
+
 ## Spawn and Manage
 
 Call `subagent_spawn` with a complete `prompt`, short `name`, chosen `harness`, and optional `working_dir`, `model`, and `reasoning_effort`. At most four subagents run concurrently.
@@ -67,3 +79,5 @@ Call `subagent_spawn` with a complete `prompt`, short `name`, chosen `harness`, 
 - `/subagents`: inspect or take over a run interactively.
 
 Results return automatically. After spawning, continue useful parent work instead of immediately waiting.
+
+For multi-model councils (claude + codex + gemini), use the **agent-council** skill.

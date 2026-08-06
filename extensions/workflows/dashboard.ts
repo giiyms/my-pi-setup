@@ -1,5 +1,5 @@
 /**
- * /workflows dashboard: a full-screen overlay with a run list and a per-run
+ * /workflows dashboard: a large centered overlay with a run list and a per-run
  * detail view (phases sidebar + agents panel), modeled after:
  *
  *   name                                             5/5 agents · 31m18s · done
@@ -610,7 +610,11 @@ export class WorkflowDashboard {
   }
 
   render(width: number): string[] {
-    const height = Math.max(MIN_HEIGHT, this.tui.terminal.rows - 1);
+    const rows = this.tui.terminal.rows || 30;
+    const height = Math.max(
+      MIN_HEIGHT,
+      Math.min(Math.floor(rows * 0.86), rows - 2),
+    );
     let lines: string[];
     if (this.view === "transcript" && this.current && this.selectedAgent()) {
       lines = this.renderTranscript(
@@ -1032,7 +1036,7 @@ function groupSquare(group: PhaseGroup, theme: Theme): string {
   return theme.fg("success", SQUARE);
 }
 
-/** Open the dashboard as a full-screen overlay. */
+/** Open the dashboard as a large centered overlay. */
 export async function showWorkflowDashboard(
   ctx: ExtensionContext,
   getActive: () => Map<string, WorkflowDetails>,
@@ -1057,7 +1061,12 @@ export async function showWorkflowDashboard(
     },
     {
       overlay: true,
-      overlayOptions: { anchor: "center", width: "100%", maxHeight: "100%" },
+      overlayOptions: {
+        anchor: "center" as const,
+        margin: 1,
+        width: "94%" as const,
+        maxHeight: "86%" as const,
+      },
     },
   );
 }

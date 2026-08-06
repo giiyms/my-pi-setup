@@ -1,5 +1,5 @@
 /**
- * /ps UI — two-stage full-screen overlay over the synchronous
+ * /ps UI — two-stage large centered overlay over the synchronous
  * TerminalReadModel:
  * - TerminalDashboard: list of all tracked terminals (select, kill, open).
  * - TerminalDetailView: read-only inspector for one terminal — metadata,
@@ -60,6 +60,20 @@ function statusWord(snap: TerminalSnapshot, theme: Theme) {
 
 // --- Entry point ---------------------------------------------------------------
 
+/** Large centered panel — avoids full-viewport dirties/scroll storms. */
+const OVERLAY_OPTIONS = {
+  anchor: "center" as const,
+  margin: 1,
+  width: "94%" as const,
+  maxHeight: "86%" as const,
+};
+
+/** Max content rows for the non-fullscreen overlay (margin:1 + maxHeight 86%). */
+function panelMaxRows(termRows: number) {
+  const rows = termRows || 30;
+  return Math.max(10, Math.min(Math.floor(rows * 0.86), rows - 2));
+}
+
 export async function openTerminalPicker(
   ctx: ExtensionCommandContext,
   view: TerminalReadModel,
@@ -77,7 +91,7 @@ export async function openTerminalPicker(
         new TerminalDashboard(tui, theme, keybindings, view, selection, done),
       {
         overlay: true,
-        overlayOptions: { anchor: "center", width: "100%", maxHeight: "100%" },
+        overlayOptions: OVERLAY_OPTIONS,
       },
     );
 
@@ -89,14 +103,14 @@ export async function openTerminalPicker(
         new TerminalDetailView(tui, theme, keybindings, picked, view, done),
       {
         overlay: true,
-        overlayOptions: { anchor: "center", width: "100%", maxHeight: "100%" },
+        overlayOptions: OVERLAY_OPTIONS,
       },
     );
     // After leaving the detail view, fall back to the dashboard.
   }
 }
 
-// --- Dashboard (fullscreen overlay) ----------------------------------------------
+// --- Dashboard (large centered overlay) -----------------------------------------
 
 export interface DashboardSelection {
   id?: string;
@@ -232,10 +246,8 @@ class TerminalDashboard implements Component {
     reconcileDashboardSelection(this.selection, terminals);
 
     const rows = this.tui.terminal.rows || 30;
-    // Render exactly terminal rows - 1 so the overlay covers the header,
-    // chat, editor, and extra footer lines while leaving pi's final footer
-    // row visible.
-    const bodyHeight = Math.max(6, rows - 5);
+    // Fit inside maxHeight 86% / margin 1 so chrome (borders, hints) is not clipped.
+    const bodyHeight = Math.max(6, panelMaxRows(rows) - 4);
     const innerWidth = width - 2;
 
     const lines: string[] = [];
@@ -490,11 +502,10 @@ class TerminalDetailView implements Component {
     }
   }
 
-  private viewportHeight(): number {
+  private viewportHeight() {
     const rows = this.tui.terminal.rows || 30;
-    // The complete view renders viewport + 8 chrome rows (borders, header,
-    // command, tab, hints). rows - 9 makes the overlay ~terminal rows - 1.
-    return Math.max(6, rows - 9);
+    // Complete view = viewport + 8 chrome rows; size to the non-fullscreen panel.
+    return Math.max(6, panelMaxRows(rows) - 8);
   }
 
   render(width: number): string[] {

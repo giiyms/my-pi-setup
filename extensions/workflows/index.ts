@@ -259,23 +259,24 @@ export default function workflows(pi: ExtensionAPI) {
   let lastUi: ExtensionContext["ui"] | undefined;
   let completedRuns = 0;
   let failedRuns = 0;
+  /** Last status text written — skip setStatus when unchanged. */
+  let lastStatusText: string | undefined;
   const updateIndicator = () => {
     const ui = lastUi;
     if (!ui) return;
     try {
       const running = activeRuns.size;
-      if (running === 0 && completedRuns === 0 && failedRuns === 0) {
-        ui.setStatus("workflows", undefined);
-        return;
-      }
-      ui.setStatus(
-        "workflows",
-        formatActivityStatus(ui.theme, "workflows", {
+      let next: string | undefined;
+      if (running !== 0 || completedRuns !== 0 || failedRuns !== 0) {
+        next = formatActivityStatus(ui.theme, "workflows", {
           running,
           done: completedRuns,
           failed: failedRuns,
-        }),
-      );
+        });
+      }
+      if (next === lastStatusText) return;
+      lastStatusText = next;
+      ui.setStatus("workflows", next);
     } catch {
       // UI may be unavailable.
     }
@@ -311,7 +312,10 @@ export default function workflows(pi: ExtensionAPI) {
       await Promise.race([Promise.allSettled(completions), timeout]);
       if (timer) clearTimeout(timer);
     }
-    lastUi?.setStatus("workflows", undefined);
+    if (lastStatusText !== undefined || lastUi) {
+      lastStatusText = undefined;
+      lastUi?.setStatus("workflows", undefined);
+    }
     lastUi = undefined;
   });
 

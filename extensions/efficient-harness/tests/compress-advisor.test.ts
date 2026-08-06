@@ -31,9 +31,12 @@ describe("summarize", () => {
   });
 
   it("extracts structural hits", () => {
-    const src = ["const a = 1;", "function foo() {}", "class Bar {}", "  x"].join(
-      "\n",
-    );
+    const src = [
+      "const a = 1;",
+      "function foo() {}",
+      "class Bar {}",
+      "  x",
+    ].join("\n");
     const s = summarizeSource("t.ts", src);
     assert.match(s, /function foo/);
     assert.match(s, /class Bar/);

@@ -39,7 +39,10 @@ describe("applyHashlineEdits", () => {
     ]);
     assert.equal(r.ok, true);
     if (r.ok) {
-      assert.equal(r.content, ["function a() {", "  return 2;", "}"].join("\n"));
+      assert.equal(
+        r.content,
+        ["function a() {", "  return 2;", "}"].join("\n"),
+      );
     }
   });
 

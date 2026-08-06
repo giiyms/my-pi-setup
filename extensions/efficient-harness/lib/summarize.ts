@@ -71,7 +71,9 @@ export function summarizeSource(
     `Token-efficient outline. For precise edits, re-read with full=true or offset/limit to get hashline anchors.`,
     "",
     "## Structural hits",
-    hits.length ? hits.join("\n") : "(no structural patterns matched; use offset/limit hashline read)",
+    hits.length
+      ? hits.join("\n")
+      : "(no structural patterns matched; use offset/limit hashline read)",
     "",
     `## Head (lines 1–${Math.min(maxPreview, lines.length)})`,
     head || "(empty)",

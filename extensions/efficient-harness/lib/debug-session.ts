@@ -79,7 +79,11 @@ export function getSession(id: string): DebugSession | undefined {
 }
 
 export async function which(cmd: string): Promise<boolean> {
-  const r = await runCapture(process.platform === "win32" ? "where" : "which", [cmd], process.cwd());
+  const r = await runCapture(
+    process.platform === "win32" ? "where" : "which",
+    [cmd],
+    process.cwd(),
+  );
   return r.code === 0;
 }
 
@@ -101,7 +105,9 @@ export async function lldbLaunch(opts: {
       : `breakpoint set --name ${opts.breakpoint}`
     : "breakpoint set --name main";
 
-  const argList = (opts.args ?? []).map((a) => `"${a.replace(/"/g, '\\"')}"`).join(" ");
+  const argList = (opts.args ?? [])
+    .map((a) => `"${a.replace(/"/g, '\\"')}"`)
+    .join(" ");
   const script = [
     `target create "${opts.program}"`,
     argList ? `settings set target.run-args ${argList}` : "",
@@ -158,7 +164,9 @@ export async function lldbBatch(opts: {
       : `breakpoint set --name ${opts.breakpoint}`
     : null;
 
-  const argList = (opts.args ?? []).map((a) => `"${a.replace(/"/g, '\\"')}"`).join(" ");
+  const argList = (opts.args ?? [])
+    .map((a) => `"${a.replace(/"/g, '\\"')}"`)
+    .join(" ");
   const script = [
     `target create "${opts.program}"`,
     argList ? `settings set target.run-args ${argList}` : "",
@@ -173,7 +181,12 @@ export async function lldbBatch(opts: {
   const scriptPath = join(tmpdir(), `pi-dbg-${id}.lldb`);
   await writeFile(scriptPath, script, "utf8");
   try {
-    const r = await runCapture("lldb", ["-b", "-s", scriptPath], opts.cwd, 30_000);
+    const r = await runCapture(
+      "lldb",
+      ["-b", "-s", scriptPath],
+      opts.cwd,
+      30_000,
+    );
     return [r.stdout, r.stderr].filter(Boolean).join("\n").trim();
   } finally {
     await unlink(scriptPath).catch(() => {});
@@ -197,7 +210,13 @@ export async function nodeInspectStart(opts: {
 
   let boot = "";
   const output = await new Promise<string>((resolvePromise) => {
-    const timer = setTimeout(() => resolvePromise(boot || "started (timeout waiting for debugger message)"), 3000);
+    const timer = setTimeout(
+      () =>
+        resolvePromise(
+          boot || "started (timeout waiting for debugger message)",
+        ),
+      3000,
+    );
     const onData = (d: Buffer) => {
       boot += d.toString();
       if (boot.includes("Debugger listening") || boot.includes("ws://")) {

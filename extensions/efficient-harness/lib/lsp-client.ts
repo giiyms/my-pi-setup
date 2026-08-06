@@ -35,7 +35,12 @@ const SEV: Record<number, Diagnostic["severity"]> = {
 };
 
 async function which(cmd: string): Promise<string | null> {
-  const r = await run(process.platform === "win32" ? "where" : "which", [cmd], process.cwd(), 3000);
+  const r = await run(
+    process.platform === "win32" ? "where" : "which",
+    [cmd],
+    process.cwd(),
+    3000,
+  );
   if (r.code !== 0) return null;
   const line = r.stdout.trim().split("\n")[0]?.trim();
   return line || null;
@@ -105,7 +110,10 @@ export function detectLanguage(filePath: string): string {
 
 // ── CLI backends ─────────────────────────────────────────────
 
-async function pyrightCli(abs: string, cwd: string): Promise<DiagnosticsResult | null> {
+async function pyrightCli(
+  abs: string,
+  cwd: string,
+): Promise<DiagnosticsResult | null> {
   const bin = (await which("pyright")) ?? null;
   if (!bin) return null;
   const r = await run(bin, ["--outputjson", abs], cwd, 45_000);
@@ -117,16 +125,23 @@ async function pyrightCli(abs: string, cwd: string): Promise<DiagnosticsResult |
         severity?: string;
         message?: string;
         rule?: string;
-        range?: { start: { line: number; character: number }; end: { line: number; character: number } };
+        range?: {
+          start: { line: number; character: number };
+          end: { line: number; character: number };
+        };
       }>;
     };
     const diags: Diagnostic[] = [];
     for (const d of json.generalDiagnostics ?? []) {
-      if (d.file && resolve(d.file) !== abs && !d.file.endsWith(basename(abs))) continue;
+      if (d.file && resolve(d.file) !== abs && !d.file.endsWith(basename(abs)))
+        continue;
       const sev = (d.severity ?? "error").toLowerCase();
       diags.push({
         severity:
-          sev === "error" || sev === "warning" || sev === "information" || sev === "hint"
+          sev === "error" ||
+          sev === "warning" ||
+          sev === "information" ||
+          sev === "hint"
             ? sev === "information"
               ? "info"
               : (sev as Diagnostic["severity"])
@@ -193,7 +208,9 @@ class LspProcess {
       const len = Number(m[1]);
       const bodyStart = headerEnd + 4;
       if (this.buf.length < bodyStart + len) return;
-      const body = this.buf.subarray(bodyStart, bodyStart + len).toString("utf8");
+      const body = this.buf
+        .subarray(bodyStart, bodyStart + len)
+        .toString("utf8");
       this.buf = this.buf.subarray(bodyStart + len);
       try {
         this.handleMessage(JSON.parse(body));
@@ -280,9 +297,13 @@ class LspProcess {
   }
 
   waitDiagnostics(uri: string, timeoutMs = 4000): Promise<Diagnostic[]> {
-    if (this.diagnostics.has(uri)) return Promise.resolve(this.diagnostics.get(uri)!);
+    if (this.diagnostics.has(uri))
+      return Promise.resolve(this.diagnostics.get(uri)!);
     return new Promise((resolve) => {
-      const timer = setTimeout(() => resolve(this.diagnostics.get(uri) ?? []), timeoutMs);
+      const timer = setTimeout(
+        () => resolve(this.diagnostics.get(uri) ?? []),
+        timeoutMs,
+      );
       this.diagWaiters.push(() => {
         clearTimeout(timer);
         resolve(this.diagnostics.get(uri) ?? []);
@@ -378,7 +399,12 @@ export async function getDiagnostics(
   try {
     await access(abs, constants.R_OK);
   } catch {
-    return { path: abs, engine: "none", diagnostics: [], error: `Cannot read ${filePath}` };
+    return {
+      path: abs,
+      engine: "none",
+      diagnostics: [],
+      error: `Cannot read ${filePath}`,
+    };
   }
 
   const content = options.content ?? (await readFile(abs, "utf8"));
@@ -392,7 +418,15 @@ export async function getDiagnostics(
     if (!result) {
       const bin = await which("pyright-langserver");
       if (bin) {
-        result = await lspDiagnostics(abs, cwd, content, bin, ["--stdio"], "python", "pyright-lsp");
+        result = await lspDiagnostics(
+          abs,
+          cwd,
+          content,
+          bin,
+          ["--stdio"],
+          "python",
+          "pyright-lsp",
+        );
       }
     }
   } else if (lang === "typescript" || lang === "javascript") {
@@ -411,12 +445,28 @@ export async function getDiagnostics(
   } else if (lang === "rust") {
     const bin = await which("rust-analyzer");
     if (bin) {
-      result = await lspDiagnostics(abs, cwd, content, bin, [], "rust", "rust-analyzer");
+      result = await lspDiagnostics(
+        abs,
+        cwd,
+        content,
+        bin,
+        [],
+        "rust",
+        "rust-analyzer",
+      );
     }
   } else if (lang === "cpp") {
     const bin = await which("clangd");
     if (bin) {
-      result = await lspDiagnostics(abs, cwd, content, bin, [], "cpp", "clangd");
+      result = await lspDiagnostics(
+        abs,
+        cwd,
+        content,
+        bin,
+        [],
+        "cpp",
+        "clangd",
+      );
     }
   } else if (lang === "go") {
     const bin = await which("gopls");
@@ -457,14 +507,23 @@ export function formatDiagnostics(r: DiagnosticsResult): string {
     (d) =>
       `${d.severity.toUpperCase()} ${rel}:${d.line}:${d.character} ${d.message}${d.code != null ? ` [${d.code}]` : ""}${d.source ? ` (${d.source})` : ""}`,
   );
-  return [`${rel} — ${r.diagnostics.length} issue(s) via ${r.engine}`, ...lines].join("\n");
+  return [
+    `${rel} — ${r.diagnostics.length} issue(s) via ${r.engine}`,
+    ...lines,
+  ].join("\n");
 }
 
 /** Best-effort root for workspace (has package.json / Cargo.toml / pyproject). */
 export async function findProjectRoot(start: string): Promise<string> {
   let dir = resolve(start);
   for (let i = 0; i < 12; i++) {
-    for (const marker of ["package.json", "Cargo.toml", "pyproject.toml", "go.mod", "tsconfig.json"]) {
+    for (const marker of [
+      "package.json",
+      "Cargo.toml",
+      "pyproject.toml",
+      "go.mod",
+      "tsconfig.json",
+    ]) {
       try {
         await access(resolve(dir, marker), constants.R_OK);
         return dir;
